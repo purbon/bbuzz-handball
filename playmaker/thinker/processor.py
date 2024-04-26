@@ -15,7 +15,7 @@ class EmbeddingPreProc:
         df = df[df[Schema.ACTIVE_PLAYERS_COLUMN] == 6]
 
         new_df_columns = ["game", aggregation_key]
-        extra_attributes = df.columns.to_list()
+        extra_attributes = [attr for attr in df.columns.to_list() if not attr.startswith("player_")]
 
         try:
             extra_attributes.remove(aggregation_key)
@@ -58,7 +58,7 @@ class EmbeddingPreProc:
                         val = last_record_in_series[extra_attribute].iloc[0]
                 cdf[extra_attribute] = val
 
-            flatten_view_df = pd.concat((flatten_view_df, cdf), ignore_index=True)
+            flatten_view_df = pd.concat((cdf, flatten_view_df), ignore_index=True)
 
         return flatten_view_df
 
