@@ -2,15 +2,15 @@ from thinker.meta import Schema
 import numpy as np
 import pandas as pd
 
-from thinker.models import CentroidsModel, Kinetics
+from thinker.models import CentroidsModel, Kinetics, Normalizer, flatten
 
 
-class CentroidsEmbedding:
+class EmbeddingPreProc:
 
     def __init__(self, raw_df):
         self.raw_df = raw_df
 
-    def process(self, aggregation_key):
+    def process(self, aggregation_key, coordinate_processor):
         df = self.raw_df.copy()
         df = df[df[Schema.ACTIVE_PLAYERS_COLUMN] == 6]
 
@@ -22,16 +22,13 @@ class CentroidsEmbedding:
         except ValueError:
             pass
 
-        for i in range(6):
-            new_df_columns.append(f"p{i}_x_centroid")
-            new_df_columns.append(f"p{i}_y_centroid")
+        if isinstance(coordinate_processor, CentroidsProcessor):
+            for i in range(6):
+                new_df_columns.append(f"p{i}_x_centroid")
+                new_df_columns.append(f"p{i}_y_centroid")
         new_df_columns += extra_attributes
 
-        flatten_view_df = pd.DataFrame()#([], columns=new_df_columns)
-
-
-        cm = CentroidsModel()
-        km = Kinetics()
+        flatten_view_df = pd.DataFrame()
 
         agg_fields = ["misses", "throws", "goal"]
 
@@ -41,9 +38,7 @@ class CentroidsEmbedding:
             last_record_in_series = data_points.tail(1)
             phase = first_record_in_series["game_phases"].values[0]
 
-            cdf = cm.fit(possession_array=data_points)
-            kdf = km.fit(poss_array=data_points)
-            cdf = pd.concat((cdf, kdf), axis=1)
+            cdf = coordinate_processor.apply(data_points=data_points)
 
             cdf["game"] = game[0]
             cdf[aggregation_key] = game[1]
@@ -66,3 +61,51 @@ class CentroidsEmbedding:
             flatten_view_df = pd.concat((flatten_view_df, cdf), ignore_index=True)
 
         return flatten_view_df
+
+
+class CentroidsProcessor:
+
+    def __init__(self):
+        self.cm = CentroidsModel()
+        self.km = Kinetics()
+
+    def apply(self, data_points):
+        cdf = self.cm.fit(possession_array=data_points)
+        kdf = self.km.fit(poss_array=data_points)
+        return pd.concat((cdf, kdf), axis=1)
+
+
+class FlattenProcessor:
+
+    def __init__(self, n_players, avg_length):
+        self.nm = Normalizer()
+        self.km = Kinetics()
+        self.n_players = n_players
+        self.avg_length = avg_length
+
+    def apply(self, data_points):
+        normalized_possession = self.nm.fit(poss_array=data_points, cutoff_size=self.avg_length, number_of_players=self.n_players)
+        kdf = self.km.fit(poss_array=normalized_possession)
+        flattened_version = flatten(poss_array=normalized_possession, number_of_players=self.n_players)
+        return pd.concat((flattened_version, kdf), axis=1)
+
+
+class CentroidsEmbedding(EmbeddingPreProc):
+
+    def __init__(self, raw_df):
+        super().__init__(raw_df=raw_df)
+
+    def process(self, aggregation_key):
+        return super().process(aggregation_key=aggregation_key, coordinate_processor=CentroidsProcessor())
+
+
+class FlattenEmbedding(EmbeddingPreProc):
+
+    def __init__(self, raw_df, avg_length, n_players=6):
+        super().__init__(raw_df=raw_df)
+        self.avg_length = avg_length
+        self.n_players = n_players
+
+    def process(self, aggregation_key):
+        coordinate_processor = FlattenProcessor(n_players=self.n_players, avg_length=self.avg_length)
+        return super().process(aggregation_key=aggregation_key, coordinate_processor=coordinate_processor)

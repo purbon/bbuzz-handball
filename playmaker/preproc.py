@@ -1,11 +1,11 @@
 import pandas as pd
 
-from thinker.processor import CentroidsEmbedding
+from thinker.processor import CentroidsEmbedding, FlattenEmbedding
 
 if __name__ == "__main__":
 
     df = pd.read_hdf(path_or_buf=f"dumps/dataset.h5", key="pos")
 
-    centroids = CentroidsEmbedding(raw_df=df)
-    view = centroids.process(aggregation_key="sequence_id") # sequence_id possession
+    preproc = FlattenEmbedding(raw_df=df, avg_length=25)
+    view = preproc.process(aggregation_key="possession") # sequence_label possession
     print(view)
