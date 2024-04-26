@@ -1,0 +1,10 @@
+class Schema:
+    ACTIVE_PLAYERS_COLUMN = "active_players"
+    ACTIVE_SENSORS_COLUMN = "active_sensors"
+    X_COLUMN = "x"
+    Y_COLUMN = "y"
+    POS_COLUMN = "pos"
+    ANGLE_COLUMN = "angle"
+    CUM_DIST_COLUMN = "cumdist"
+    DIST_COLUMN = "dist_last_5sec"
+    SPEED_COLUMN = "speed_last_5sec"
