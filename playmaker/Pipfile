@@ -12,6 +12,8 @@ scikit-learn = "*"
 keras = "2.15.0"
 keras-tuner = "*"
 tensorflow = "*"
+matplotlib = "*"
+imblearn = "*"
 
 [dev-packages]
 

@@ -9,7 +9,7 @@ from thinker.processor import CentroidsEmbedding, FlattenEmbedding
 
 def build_manual_embeddings(df, key):
     if key == "flatten":
-        preproc = FlattenEmbedding(raw_df=df, avg_length=25)
+        preproc = FlattenEmbedding(raw_df=df, avg_length=30)
     else:
         preproc = CentroidsEmbedding(raw_df=df)
 
@@ -22,9 +22,9 @@ def build_manual_embeddings(df, key):
 
 def build_autoencoder_embeddings(df):
     autokey = AutoEmbeddings()
-    lstm_units = 256
+    lstm_units = 512 #256
     levels = 2
-    timesteps = 25
+    timesteps = 35
 
     lse_size = int(lstm_units / pow(2, levels - 1))
     model_name = f"keras.{lse_size}_{lstm_units}-{levels}-{timesteps}.keras"

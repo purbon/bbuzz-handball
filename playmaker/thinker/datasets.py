@@ -14,7 +14,12 @@ class DatasetConfig:
                  include_distance=False,
                  include_vel=False,
                  include_acl=False,
-                 include_offense_metadata=False
+                 include_offense_metadata=False,
+                 include_fk_counts=False,
+                 include_scoring=False,
+                 include_time=False,
+                 include_prev_possession_result=False,
+                 include_prev_score_diff=False
                  ):
         self.id = id
         self.include_centroids = include_centroids
@@ -22,6 +27,11 @@ class DatasetConfig:
         self.include_vel = include_vel
         self.include_acl = include_acl
         self.include_offense_metadata = include_offense_metadata
+        self.include_fk_counts = include_fk_counts
+        self.include_scoring = include_scoring
+        self.include_time = include_time
+        self.include_prev_possession_result = include_prev_possession_result
+        self.include_prev_score_diff = include_prev_score_diff
 
 
 def flattened_handball_possessions(data_home=f"dumps/dataset.h5",
@@ -118,6 +128,9 @@ def latent_space_encoded_possession(method_type="lstm", lse_size=128,
         G = df[game_column]
         return X, y, G
 
+
+
+
 def __cget_classification_data(filter=DatasetConfig(), n_players=6):
     columns = []
     for i in range(n_players):
@@ -130,9 +143,19 @@ def __cget_classification_data(filter=DatasetConfig(), n_players=6):
         if filter.include_acl:
             columns += [f"p{i}_avg_acc", f"p{i}_p90_acc"]
     if filter.include_offense_metadata:
-        columns += ["offense_type", "misses", "throws", "goal", "throw_zone", "tactical_situation"]
+        columns += ["offense_type", "misses", "throws", "throw_zone", "tactical_situation", "sequences"]
     if filter.include_centroids:
         columns += ["team_x_centroid", "team_y_centroid"]
+    if filter.include_scoring:
+        columns += ["score_team_a", "score_team_b"]
+    if filter.include_time:
+        columns += ["live_possession_duration_in_sec"]
+    if filter.include_prev_possession_result:
+        columns += ["prev1_possession_result", "prev2_possession_result"]
+    if filter.include_prev_score_diff:
+        columns += ["prev1_score_diff", "prev2_score_diff"]
+    if filter.include_fk_counts:
+        columns += ["fk_count",	"pen_count", "tm_count",	"prev_tm",	"post_tm"]
     return list(set(columns))
 
 def raw_handball_possessions(target_class,
@@ -141,7 +164,7 @@ def raw_handball_possessions(target_class,
                              augment=False,
                              normalizer=False,
                              population_field=None):
-    df = pd.read_hdf(path_or_buf=f"handball.h5", key="pos")
+    df = pd.read_hdf(path_or_buf=f"dumps/dataset.h5", key="pos")
     df = df[df[Schema.ACTIVE_PLAYERS_COLUMN] == 6]
 
     scaler = MinMaxScaler()
@@ -170,13 +193,13 @@ def raw_handball_possessions(target_class,
         df[population_field].fillna('', inplace=True)
     #    df[population_field] = field_encode(df_value=df[population_field])
 
-    group_df = df.groupby(["GAME", "possession"])
+    group_df = df.groupby(["game", "possession"])
     for game, data_points in group_df:
         my_game_phase = data_points["game_phases"].head(1).iloc[0]
         if game_phase is not None and my_game_phase != game_phase:
             continue
         possession = data_points[filter]
-        games.append(data_points["GAME"].to_numpy()[-1])
+        games.append(data_points["game"].to_numpy()[-1])
         np_data, np_truth = __map_a_possession(possession=possession, timesteps=timesteps)
         data.append(np_data)
         truth.append(data_points[target_class].tail(1))
