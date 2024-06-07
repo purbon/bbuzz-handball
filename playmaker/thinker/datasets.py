@@ -212,7 +212,7 @@ def raw_handball_possessions(target_class,
             truth.append(data_points[target_class].tail(1))
             if population_field:
                 sensitive_attribute.append(data_points[population_field].tail(1))
-            games.append(data_points["GAME"].to_numpy()[-1])
+            games.append(data_points["game"].to_numpy()[-1])
 
     X, y, G = np.array(data), np.array(truth), np.array(games)
     if normalizer:

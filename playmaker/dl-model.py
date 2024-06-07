@@ -15,7 +15,8 @@ from thinker.datasets import centroid_handball_possession, flattened_handball_po
 from thinker.ml.experimenter import ml_methods_configs, grid_search_estimator, train_and_test
 
 from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import NeighbourhoodCleaningRule
+from imblearn.under_sampling import NeighbourhoodCleaningRule, RandomUnderSampler
+
 
 def get_dataset(config, mode, target_attribute, normalizer=False, keras_config=None, include_sequence=False, phase="AT", timesteps=25, lse_size=128):
     data, classes, games = None, None, None
@@ -79,10 +80,11 @@ def transform_dataset(data, classes):
 
 def dataset_resample(X, y, action):
     if action == "down":
-        rus = NeighbourhoodCleaningRule()
+        #rus = NeighbourhoodCleaningRule(sampling_strategy="not minority", n_neighbors=3)
+        rus = RandomUnderSampler(sampling_strategy="not minority")
         X, y = rus.fit_resample(X, y)
     elif action == "up":
-        rus = SMOTE()
+        rus = SMOTE(sampling_strategy=1)
         X, y = rus.fit_resample(X, y)
     return X, y
 
@@ -124,13 +126,14 @@ class KerasConfig:
 
 
 if __name__ == "__main__":
-    mode = "flatten"
+    mode = "raw"
     experiment_id = time.time()
     k_fold_strategy = "group"
-    resample_action = "down"
-    method_name = "dense"
+    resample_action = None # down up None
+    method_name = "dense" # dense dense2 lstm2 transformer
+    target_attribute = "organized_game" # organized_game possession_result
 
-    n_splits = 5
+    n_splits = 9
 
     include_sequences = False
 
@@ -140,12 +143,12 @@ if __name__ == "__main__":
     data_config = DatasetConfig(
         include_centroids=True,
         include_distance=True,
-        include_vel=True,
-        include_acl=True,
+        include_vel=False,
+        include_acl=False,
         include_fk_counts=False,
-        include_offense_metadata=True,
+        include_offense_metadata=False,
         include_scoring=False,
-        include_time=True,
+        include_time=False,
         include_prev_possession_result=False,
         include_prev_score_diff=False
     )
@@ -154,11 +157,10 @@ if __name__ == "__main__":
         id=1,
         epochs=50,
         batch_size=32,
-        timesteps=35,
+        timesteps=30,
         do_augment=False
     )
 
-    target_attribute = "organized_game"
     normalizer = (method_name != "lstm2" and method_name != "transformer" and mode == "raw")
 
     data, classes, games = get_dataset(config=data_config,
@@ -184,6 +186,7 @@ if __name__ == "__main__":
     acc_scores = {"auc": 0, "precision": 0, "recall": 0, "f1": 0}
 
     callbacks = [keras.callbacks.EarlyStopping(patience=10, monitor="loss", restore_best_weights=True)]
+
 
     for train_index, test_index in k_folder.split(X=X, y=y, groups=games):
         X_train = X.iloc[train_index, :] if mode != "raw" else X[train_index, :]
